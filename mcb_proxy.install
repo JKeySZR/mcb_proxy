@@ -1,0 +1,179 @@
+<?php
+
+//function mcb_proxy_uninstall() {
+//  drupal_uninstall_schema('mcb_proxy_site2group');
+//  drupal_uninstall_schema('mcb_proxy_site');
+//  drupal_uninstall_schema('mcb_proxy_group');
+//}
+//
+//function mcb_proxy_enable() {
+//  if (db_table_exists('mcb_proxy_group') == FALSE) {
+//    drupal_install_schema('mcb_proxy_group');
+//  }
+//  if (db_table_exists('mcb_proxy_site') == FALSE) {
+//    drupal_install_schema('mcb_proxy_site');
+//  }  
+//  if (db_table_exists('mcb_proxy_group') == FALSE) {
+//    drupal_install_schema('mcb_proxy_group');
+//  }    
+//}
+//
+//function mcb_proxy_disable() {
+//  if (db_table_exists('mcb_proxy') == TRUE) {
+//    drupal_uninstall_schema('mcb_proxy');
+//    db_query('DROP TABLE {mcb_proxy}');
+//  }
+//}
+
+function mcb_proxy_schema() {
+  $schema = array();
+
+  $schema['mcb_proxy_group'] = array(
+    'description' => 'for LDAP group ID',
+    'fields' => array(
+      'id' => array(
+        'description' => 'id',
+        'type' => 'serial',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'desc' => array(
+        'description' => 'Description of group',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),
+    ),
+    'primary key' => array('id'),
+  );  
+  
+  $schema['mcb_proxy_site'] = array(
+    'description' => 'mcb_proxy',
+    'fields' => array(
+      'id' => array(
+        'description' => 'id',
+        'type' => 'serial',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'domain' => array(
+        'description' => 'site name domain',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),
+    ),
+    'primary key' => array('id'),
+    'unique keys' => array(
+      'domain' => array('domain'),
+    ),
+  );
+
+  $schema['mcb_proxy_site2group'] = array(
+    'description' => 'mcb_proxy',
+    'fields' => array(
+      'gid' => array(
+        'description' => 'Group id from mcb_proxy_group',
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'sid' => array(
+        'description' => 'Site id from mcb_proxy_site ',
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => true
+      ),      
+    ),    
+  );  
+  
+  $schema['mcb_proxy_users'] = array(
+    'description' => 'User ACL ',
+    'fields' => array(
+      'id' => array(
+        'description' => 'id',
+        'type' => 'serial',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'login' => array(
+        'login' => 'Novell login',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),
+      'context' => array(
+        'login' => 'Novell context',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),      
+      'inet' => array(
+        'description' => 'Какой тип доступа 0 обычный',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => true,
+        'default' => 0
+      ),      
+      'sfa' => array(
+        'description' => 'Sites filter allow',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => false
+      ),         
+      'sfd' => array(
+        'description' => 'Sites filter deny',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => false
+      ),               
+    ),
+    'primary key' => array('id'),
+  );    
+  
+  $schema['mcb_proxy_user2group'] = array(
+    'description' => 'mcb_proxy',
+    'fields' => array(
+      'gid' => array(
+        'description' => 'Group id from mcb_proxy_group',
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'uid' => array(
+        'description' => 'User id from mcb_proxy_users',
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => true
+      ),      
+    ),    
+  );    
+  
+  return $schema;
+}
+
+/**
+ * Add a new table mcb_proxy_user2group
+ */
+function it_novell_update_7001() {
+  
+  $schema['mcb_proxy_user2group'] = array(
+    'description' => 'mcb_proxy',
+    'fields' => array(
+      'gid' => array(
+        'description' => 'Group id from mcb_proxy_group',
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'uid' => array(
+        'description' => 'User id from mcb_proxy_users',
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => true
+      ),      
+    ),    
+  );    
+  
+  db_create_table('mcb_proxy_user2group', $schema['mcb_proxy_user2group']);
+}

@@ -1,0 +1,62 @@
+Array
+
+Array
+(
+    [eer] => vasa
+    [guga] => pety
+)
+
+
+Array
+(
+    [err_name] => 
+    [ip_c] => 172.16.3.91
+    [user] => bocharov-ms
+)
+
+
+Array
+(
+    [domain] => mail.ru
+    [err_name] => %X
+    [ip] => 172.16.3.91
+    [url] => https://mail.ru/
+)
+
+
+Array
+(
+    [domain] => mail.ru
+    [err_name] => %X
+    [ip] => 172.16.3.91
+    [url] => https://mail.ru/
+)
+
+
+Array
+(
+    [domain] => mail.ru
+    [err_name] => %X
+    [ip] => 172.16.3.91
+    [url] => http://mail.ru/
+)
+
+
+Array
+(
+    [domain] => software-radar.com
+    [err_name] => %X
+    [ip] => 172.16.3.91
+    [url] => http://software-radar.com/
+)
+
+
+Array
+(
+    [domain] => mail.ru
+    [err_name] => %X
+    [ip] => 172.16.3.91
+    [url] => https://mail.ru/
+)
+
+

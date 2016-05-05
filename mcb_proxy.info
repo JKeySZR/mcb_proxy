@@ -1,0 +1,4 @@
+name = mcb_proxy 
+description = Manage Squid proxy acl MCB
+core = 7.x
+package = Custom

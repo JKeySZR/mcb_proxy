@@ -1,0 +1,627 @@
+<?php
+
+// Определяем константы для таблицы mcb_proxy_users поле inet  byte 
+define('MCB_PROXY_STANDART', 0);  // обычный интернет накладываются глобальные ограничения
+define('MCB_PROXY_LIMITED', 1);   // Есть ограничения на сайты
+define('MCB_PROXY_ALLOW_ONLY', 2); // Доступ только на разрешенные явно сайты
+define('MCB_PROXY_DENY_ONLY', 3); // Доступ только на разрешенные явно сайты
+define('MCB_PROXY_UNLIMITED', 255);  // Интеренет без ограничений
+
+/**
+ * Вспомогательная функция для ображения к переменным,
+ *  получения их имени по значению
+ * @return type
+ */
+function _mcb_proxy_constants($opt = null) {
+ $name = array(
+    'MCB_PROXY_STANDART' => 0, // обычный интернет накладываются глобальные ограничения
+    'MCB_PROXY_LIMITED' => 1, // Есть ограничения на сайты
+    'MCB_PROXY_ALLOW_ONLY' => 2, // Доступ только на разрешенные явно сайты
+    'MCB_PROXY_DENY_ONLY' => 3, // Доступ только на разрешенные явно сайты
+    'MCB_PROXY_UNLIMITED' => 255, // Интеренет без ограничений    
+  );
+   
+ $value = array_flip($name);
+ 
+ switch ($opt) {
+    case 'NAME':
+      return $name;
+     break;
+    case 'NUM':
+      return $value;
+     break;   
+
+    default:
+     break;
+ }
+  
+ return array(
+   'NAME' => $name,
+   'NUM' => $value,
+ );
+}
+
+function mcb_proxy_init() {
+  drupal_add_css(drupal_get_path('module', 'mcb_proxy') . '/css/mcb_proxy_style.css');
+  drupal_add_js(drupal_get_path('module', 'mcb_proxy') . '/js/mcb_proxy_jfunctions.js');
+}
+
+/**
+ * Implements hook_permission();
+ */
+function mcb_proxy_permission() {
+  return array(
+    'access protected mcb_proxy_full' => array(
+      'title' => 'MCB Proxy manage',
+      'description' => 'Управление proxy Squid',
+    ),
+//    'access protected mcb_proxy_' => array(
+//      'title' => 'MCB Proxy manage',
+//      'description' => 'Управление proxy Squid',
+//    ),    
+  );
+}
+
+function mcb_proxy_menu() {
+  $items = array();
+  $items['mcb/mcb_proxy/index'] = array(
+    'title' => t('Custom module'),
+    'page callback' => 'mcb_proxy_index_action',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['mcb/mcb_proxy/sites'] = array(
+    'title' => 'Add site to DB',
+    'page callback' => 'mcb_proxy_page_sites',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['mcb/mcb_proxy/groups'] = array(
+    'title' => 'Add site to DB',
+    'page callback' => 'mcb_proxy_page_groups',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['mcb/mcb_proxy/users'] = array(
+    'title' => 'List of users',
+    'page callback' => 'mcb_proxy_page_users',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['mcb/mcb_proxy/user/edit/%'] = array(
+    'title' => 'Редактирование пользователя proxy',
+    'description' => 'Squid управление пользователями', //описание страницы
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_user_edit', 4),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+    'weight' => 200,
+  );
+
+  $items['mcb/mcb_proxy/user/add'] = array(
+    'title' => 'Добавить пользователя proxy',
+    'description' => 'Squid управление пользователями', //описание страницы
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_user_add'),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+    'weight' => 100,
+  );
+
+  $items['mcb/mcb_proxy/user/import'] = array(
+    'title' => 'Импортировать пользователей proxy',
+    'description' => 'Squid import пользователей', //описание страницы
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_user_import'),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+  );
+
+  $items['mcb/mcb_proxy/user/devel'] = array(
+    'title' => 'Импортировать пользователей proxy',
+    'description' => 'Squid import пользователей', //описание страницы
+    //'page callback' => 'mcb_proxy_page_user_import',
+    'page callback' => 'mcb_proxy_page_devel',
+    //'page arguments' => array('mcb_proxy_form_user_import'),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+  );
+
+  $items['mcb/mcb_proxy/deny/%/%'] = array(   
+    'title' => 'Ограничения PROXY',
+    'description' => 'Squid VAR пользователей', //описание страницы    
+    'page callback' => 'mcb_proxy_page_deny',
+    'page arguments' => array(3,4),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );  
+
+  return $items;
+}
+
+function mcb_proxy_theme() {
+  return array(
+    'mcb_proxy_index' => array(
+      'template' => 'mcb_proxy_index'
+    )
+  );
+}
+
+function mcb_proxy_index_action() {
+  return theme('mcb_proxy_index', array());
+}
+
+/**
+ *  Заносим сайты
+ */
+function mcb_proxy_page_sites() {
+  //module_load_include($type, $module)
+  $dbg = 0;
+  $bg = ldap_servers_get_servers();
+
+  $email = 'bocharov-ms@metcombank.ru';
+  // Get all enabled enabled servers.
+  if ($ldap_servers = ldap_servers_get_servers('metkom_novell', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    // Run a search.
+    if ($results = $ldap_server->search('cn=metcombank_net,ou=dnsdhcp,ou=A1SRV,ou=HQM,o=MCB', 'objectClass=dNIPDNSRRset')) {
+      $dbg = 5;
+      dsm($results);
+    }
+    else {
+      drupal_set_message(t('No results for that email.'));
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+  }
+
+
+
+  $content = 'Buga-ga';
+  $content .= render(drupal_get_form('mcb_proxy_form_sites_add'));
+  return $content;
+}
+
+/**
+ * Implements hook_forms();
+ */
+function mcb_proxy_form_sites_add($form_id, &$form_state) {
+
+  //drupal_set_title('Я тебя по IP вычислю');
+  $form['site'] = array(
+    '#type' => 'fieldset',
+    '#attributes' => array('class' => array('f_bss')),
+  );
+
+  $form['site']['domain'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Домен',
+    '#size' => 40,
+    '#maxlength' => 30,
+    //'#attributes' => array('class' => array('frm_bss')),
+    '#prefix' => '<div class="frm_bss">',
+    '#suffix' => '</div>',
+  );
+
+
+
+  $form['submit'] = array(
+    '#value' => 'Добавить',
+    '#type' => 'submit',
+    '#submit' => array('it_novell_search_submit'),
+    '#attributes' => array('class' => array('btn find')),
+  );
+
+  return $form;
+}
+
+/**
+ *  Заносим сайты
+ */
+function mcb_proxy_page_groups() {
+  //module_load_include($type, $module)
+  $content = 'Buga-ga';
+  $dbg = 0;
+
+  $headers = array(
+    array('data' => 'Group Name',),
+    array('data' => 'Members of group',),
+  );
+
+  $rows = $table;
+
+//  $rows = array(
+//    array('field' => 'First_Name', 'data' => $result->first_name),
+//    array('field' => 'Last_Name', 'data' => $result->last_name),
+//  );
+
+  $table_data = array(
+    'header' => $headers,
+    'rows' => $rows,
+    'sticky' => TRUE,
+    'empty' => 'No results found',
+    'attributes' => array(),
+    'caption' => count($data['rows']) . ' rows',
+    'colgroups' => array()
+  );
+
+  $content .= theme_table($table_data);
+
+//  $content .= render(drupal_get_form('mcb_proxy_form_sites_add'));
+  return $content;
+}
+
+/**
+ *  Вспомогательная функция по разбору результата запроса  на наличие групп и 
+ *  членов входящих в эту группу. 
+ * 
+ * @param type $entry
+ */
+function _mcb_proxy_ldap_get_group(&$results) {
+  $dbg = 0;
+  $tables = array();
+  // Получили результат запроса. Теперь  посмотрим каие атрибуты нам 
+  // доступны в этой выборке. 
+  $attributes_display = array();
+  if (isset($results[0]) && $results[0]) { // searching on all attributes
+    foreach ($results[0] as $k => $v) {
+      if (is_numeric($k)) {
+        $attributes_display[] = $v;
+      }
+    }
+  }
+  unset($v);
+  unset($k);
+
+
+
+  foreach ($results as $i => $entry) {
+    $dbg = 5;
+    // Получаем название группы
+    if (isset($entry['cn'])) {
+      // Проверяем есть ли у этой групы члены, если есть получить их
+      $members = '';
+      if (isset($entry['member'])) {
+        unset($entry['member']['count']);
+        foreach ($entry['member'] as $key => $value) {
+          $members .= $value . '<br>';
+        }
+      }
+      $tables[$entry['cn'][0]] = array(
+        array('data' => $entry['cn'][0]),
+        array('data' => $members),
+      );
+    }
+    // variable_set($name, $value);
+  }
+  return $tables;
+}
+
+/**
+ *  Страница списка пользователей прокси.
+ * 
+ * @return string
+ */
+function mcb_proxy_page_users() {
+  $content = '<p>';
+  $content .= '<b><a href="/mcb/mcb_proxy/user/add" >Добавить пользователя </a></b><br>';
+  $content .= '<b><a href="/mcb/mcb_proxy/user/import" >Импорт пользователей</a></b>';
+  $content .= '</p>';
+  $headers = array(
+    array('data' => 'User Name',),
+    array('data' => 'context',),
+    array('data' => 'inet type',),
+    array('data' => 'LDAP Groups',),
+  );
+
+  $query = db_select('mcb_proxy_users', 'u')
+      ->fields('u')
+      ->execute();
+  $result = $query->fetchAll();
+
+  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
+  $ff = _mcb_proxy_constants('NUM');
+
+  foreach ($result as $value) {
+    // Ищем пользователя в LDAP
+    $member = 'cn=' . $value->login . ',ou=' . strtoupper($value->context) . ',o=MCB';
+    $filter = '(& (objectClass=groupOfNames) (member=' . $member . ') )';
+    $ldap_groups = mcb_proxy_ldap_query($dn, $filter);
+    $groups = implode('<br>', array_keys($ldap_groups));
+    $rows[] = array(
+      '<a href="/mcb/mcb_proxy/user/edit/' . $value->id . '" >' . $value->login . ' </a>',
+      $value->context,
+      $ff[$value->inet],
+      $groups,
+    );
+  }
+
+
+
+
+//  $rows = array(
+//    array('field' => 'First_Name', 'data' => $result->first_name),
+//    array('field' => 'Last_Name', 'data' => $result->last_name),
+//  );
+
+  $table_data = array(
+    'header' => $headers,
+    'rows' => $rows,
+    'sticky' => TRUE,
+    'empty' => 'No results found',
+    'attributes' => array(),
+    'caption' => count($rows) . ' rows',
+    'colgroups' => array()
+  );
+
+  $content .= theme_table($table_data);
+
+
+  // Выводим в табличном виде с пагинацией
+
+  return $content;
+}
+
+function mcb_proxy_ldap_query($dn, $filter) {
+  $dbg = 0;
+//  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
+//  $condition = 'objectClass=groupOfNames';
+  if ($ldap_servers = ldap_servers_get_servers('metkom_novell', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    // Run a search.
+    if ($results = $ldap_server->search($dn, $filter)) {
+      $dbg = 5;
+      $table = _mcb_proxy_ldap_get_group($results);
+    }
+    else {
+      drupal_set_message(t('No results for that query.'));
+      $table = FALSE;
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $table = FALSE;
+  }
+  return $table;
+}
+
+function mcb_proxy_ldap_modify($dn, $attributes) {
+  $dbg = 0;
+//  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
+//  $condition = 'objectClass=groupOfNames';
+  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    // Run a search.
+    if ($results = $ldap_server->modifyLdapEntry($dn, $attributes)) {
+      $dbg = 5;     
+    }
+    else {
+      drupal_set_message('Update LdapEntry oblomingo.', 'warning');
+      $table = FALSE;
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $table = FALSE;
+  }
+  return $table;
+}
+
+
+
+function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
+  $dbg = 0;
+//  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
+//  $condition = 'objectClass=groupOfNames';
+  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    // Run a search.
+    if ($results = $ldap_server->groupAddMember($group_dn, $user)) {
+      $dbg = 5;     
+    }
+    else {
+      drupal_set_message('Update LdapEntry oblomingo.', 'warning');
+      $table = FALSE;
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $table = FALSE;
+  }
+  return $table;
+}
+
+/**
+ *  Добовляем группу в LDAP
+ *  И добовляем ее членов
+ * 
+ * @param type $group
+ * @param type $user
+ */
+function mcb_proxy_ldap_group_add($group, $user) {
+  $bg = ldap_servers_get_servers();
+
+//  $email = 'bocharov-ms@metcombank.ru';
+//  // Get all enabled enabled servers.
+//  if ($ldap_servers = ldap_servers_get_servers('metkom_novell', 'enabled')) {
+//    // Get first server.
+//    $ldap_server = current($ldap_servers);
+//    // Run a search.
+//    if ($results = $ldap_server->search('ou=Internet_Proxy,ou=ACCESS,o=MCB', 'objectClass=groupOfNames')) {
+//      $dbg = 5;
+//      $table = _mcb_proxy_ldap_get_group($results);
+//
+//      //$display = theme('ldap_query_results', array('results' => $results, 'ldap_query' => $ldap_query, 'show_query' => TRUE));
+//      //$content .= $display;
+//      dsm($results);
+//    }
+//    else {
+//      drupal_set_message(t('No results for that email.'));
+//    }
+//  }
+//  else {
+//    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+//  }
+//   * @param string $group_dn as ldap dn
+//   * @param array $attributes in key value form
+//   *    $attributes = array(
+//   *      "attribute1" = "value",
+//   *      "attribute2" = array("value1", "value2"),
+//   *      )
+  $dbg = 0;
+
+  /**
+   * Из обращения в саппорт Novella
+   * [#931]: Программный доступ к дереву.
+   * 
+   * На самом деле вносить изменения в eDir через LDAP вполне нормально, и никаких проблем быть не должно, но в вопросе членства в группах вы действительно совершили ошибку:
+   * членство в группе в понимании eDirectory это 2 пары аттрибутов т.е. итого 4:
+   * эти два у группы надо прописать в DN пользователя:
+   * member 
+   * equivalentToMe
+   * 
+   * а эти два наоборот у пользователя со значением DN группы:
+   * memberOf
+   * sequrityEquals
+   */
+// Подключаемся к LDAP  с правами записи.
+  $ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled');
+  $ldap_server = current($ldap_servers);
+
+//  Сначала создадим группу  и добавим в нее членов
+  $attributes = array(
+    'ACL' => '2#entry#[Root]#member',
+    'owner' => 'cn=admin002,o=MCB',
+    'objectClass' => array('groupOfNames', 'Top'),
+    'member' => array(
+      'cn=bocharov-ms,ou=HQM,o=MCB'
+    ),
+    'equivalentToMe' => array(
+      'cn=bocharov-ms,ou=HQM,o=MCB'
+    )
+      );
+
+  $group_id = 'sfa_16';
+
+  $res = $ldap_server->groupAddGroup("cn=$group_id,ou=Internet_Proxy,ou=ACCESS,o=MCB", $attributes);
+
+  $dn = 'cn=bocharov-ms,ou=HQM,o=MCB';
+  $attributes = array(
+    'groupMembership' => array(
+      'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
+    ),
+    'securityEquals' => array(
+      'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
+    )
+      );
+
+  $res = $ldap_server->modifyLdapEntry($dn, $attributes);
+
+// После чего необходимо  пользователю также добавить  записи.
+// атрибут securityEquals  = cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB 
+// и  groupMembership =  cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB
+  if ($res) {
+    $rr = $ldap_server->groupAddMember('cn=sfa_15,ou=Internet_Proxy,ou=ACCESS,o=MCB', array('cn=bocharov-ms,ou=HQM,o=MCB'));
+  }
+}
+
+/**
+ * Для отладки 
+ * 
+ * @return string
+ */
+function mcb_proxy_page_devel(){  
+ $content = 'Debug'; 
+ $dbg = 0;    
+  $dn = 'cn=bocharov-ms,ou=HQM,o=MCB';
+  $attributes = array(
+    'groupMembership' => array(
+      'cn=sites_allow_01,ou=Internet_Proxy,ou=ACCESS,o=MCB'
+    ),
+    'securityEquals' => array(
+      'cn=sites_allow_01,ou=Internet_Proxy,ou=ACCESS,o=MCB'
+    )
+      );
+ $group_dn = 'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB';
+ $user = 'cn=bocharov-ms,ou=HQM,o=MCB';
+ $r= mcb_proxy_ldap_groupAddMember($group_dn, $user);
+ //$r = mcb_proxy_ldap_modify($dn, $attributes); 
+ 
+ return $content;
+ 
+    $server = "internet.metcombank.net";
+    //ip address will work too i.e. 192.168.254.254 just make sure this is your public ip address not private as is the example
+
+    //specify your username
+    $username = "root";
+
+    //select port to use for SSH
+    $port = "22";
+
+    //command that will be run on server B
+    $command = "ls -1 /etc/squid/conf.d/sites";
+
+    //form full command with ssh and command, you will need to use links above for auto authentication help
+    $cmd_string = "ssh -p ".$port." ".$username."@".$server." ".$command;
+
+    //this will run the above command on server A (localhost of the php file)
+    exec($cmd_string, $output);
+
+    //return the output to the browser
+    //This will output the uptime for server B on page on server A
+    echo '<pre>';
+    print_r($output);
+    echo '</pre>';
+//
+//$stream = ssh2_exec($connection, 'ls -1 /etc/squid/conf.d/sites');
+  
+ return $content;
+}
+
+/**
+ * Страница заглушка, накоторую SQUID  перенапровляет deny_info
+ *  для информирования пользователя почему, он не видит этого сайта
+ * 
+ * @param type $acl_name
+ * @param type $proxy_user
+ * @return string
+ */
+function mcb_proxy_page_deny($acl_name,$proxy_user){
+  $dbg = 0;
+  $param = drupal_get_query_parameters();
+  $log = drupal_get_path('module', 'mcb_proxy') . '/deny.log';
+  $text  = print_r($param,true);
+  file_put_contents($log, $text . PHP_EOL . PHP_EOL, FILE_APPEND);
+  $content = '';
+  switch ($acl_name) {
+    case 'blacklist':
+      drupal_set_title('Черный список');
+      $content .= "<p>"; 
+      $content .= "<b>$proxy_user</b> вы обратились к адресу: <br>";
+      $content .= "<em>" . $param['url'] . "</em> <br>"; 
+      $content .= "Данный адрес находится в черном списке, доступ к нему закрыт.";
+      $content .= "</p>"; 
+      break;
+
+    default:
+      break;
+  }
+  
+  
+  
+
+  return $content ;
+}
