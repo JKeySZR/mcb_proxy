@@ -336,7 +336,7 @@ function mcb_proxy_page_users() {
     // Ищем пользователя в LDAP
     $member = 'cn=' . $value->login . ',ou=' . strtoupper($value->context) . ',o=MCB';
     $filter = '(& (objectClass=groupOfNames) (member=' . $member . ') )';
-    $ldap_groups = mcb_proxy_ldap_query($dn, $filter);
+    $ldap_groups = _mcb_proxy_ldap_get_group(mcb_proxy_ldap_search($dn, $filter));
     $groups = implode('<br>', array_keys($ldap_groups));
     $rows[] = array(
       '<a href="/mcb/mcb_proxy/user/edit/' . $value->id . '" >' . $value->login . ' </a>',
@@ -372,7 +372,7 @@ function mcb_proxy_page_users() {
   return $content;
 }
 
-function mcb_proxy_ldap_query($dn, $filter) {
+function mcb_proxy_ldap_search($dn, $filter) {
   $dbg = 0;
 //  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
 //  $condition = 'objectClass=groupOfNames';
@@ -382,18 +382,17 @@ function mcb_proxy_ldap_query($dn, $filter) {
     // Run a search.
     if ($results = $ldap_server->search($dn, $filter)) {
       $dbg = 5;
-      $table = _mcb_proxy_ldap_get_group($results);
     }
     else {
       drupal_set_message(t('No results for that query.'));
-      $table = FALSE;
+      $results = FALSE;
     }
   }
   else {
     drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
-    $table = FALSE;
+    $results = FALSE;
   }
-  return $table;
+  return $results;
 }
 
 function mcb_proxy_ldap_modify($dn, $attributes) {
@@ -406,17 +405,18 @@ function mcb_proxy_ldap_modify($dn, $attributes) {
     // Run a search.
     if ($results = $ldap_server->modifyLdapEntry($dn, $attributes)) {
       $dbg = 5;
+      $result = TRUE;
     }
     else {
       drupal_set_message('Update LdapEntry oblomingo.', 'warning');
-      $table = FALSE;
+      $result = FALSE;
     }
   }
   else {
     drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
-    $table = FALSE;
+    $result = FALSE;
   }
-  return $table;
+  return $result;
 }
 
 /**
@@ -579,23 +579,18 @@ function mcb_proxy_ldap_group_add($group, $user) {
 function mcb_proxy_page_devel() {
   $content = 'Debug';
   $dbg = 0;
-  $dn = 'cn=bocharov-ms,ou=HQM,o=MCB';
-  $attributes = array(
-    'groupMembership' => array(
-      'cn=sites_allow_01,ou=Internet_Proxy,ou=ACCESS,o=MCB'
-    ),
-    'securityEquals' => array(
-      'cn=sites_allow_01,ou=Internet_Proxy,ou=ACCESS,o=MCB'
-    )
-  );
-  
-  
-  $group_dn = 'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB';
-  $user = 'cn=bocharov-ms,ou=HQM,o=MCB';
-  //$r = mcb_proxy_ldap_groupAddMember($group_dn, $user);
-  $r = mcb_proxy_ldap_groupRemoveMember($group_dn, $user);
-  //$r = mcb_proxy_ldap_modify($dn, $attributes); 
+    
 
+  $n_context = 'HQM';
+  $n_login = 'bocharov-ms';
+  $n_proxy_group = 'internet';
+  
+  $red = mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group);
+
+  // $r = mcb_proxy_ldap_groupAddMember($group_dn, $user);
+  // $r = mcb_proxy_ldap_groupRemoveMember($group_dn, $user);
+  // $r = mcb_proxy_ldap_modify($dn, $attributes); 
+  
   return $content;
     
 }
@@ -633,4 +628,82 @@ function mcb_proxy_page_deny($acl_name, $proxy_user) {
 
 
   return $content;
+}
+
+function _mcb_proxy_ldap_getUser($user){
+  $dbg = 0;
+//  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
+//  $condition = 'objectClass=groupOfNames';  
+  
+}
+
+function _mcb_proxy_ldap_entry_get_attr($attributes,$entry){
+  $dbg = 0;
+  if(! is_array($attributes) ) 
+    return FALSE;
+  $result = array();
+  foreach ($entry[0] as $name => $value) {
+    if(is_numeric($name)) continue;
+    // Если это тот атрибут который нам нужет тогда вычленяем его.
+    if(in_array(strtolower($name), $attributes )){
+      $dbg = 1;
+      unset($value['count']);
+      $result[$name] = $value;
+    }
+  }
+  return $result;
+  
+}
+
+/**
+ * Добавления указанного пользователя в соответсвующую группу в LDAP
+ * 
+ * @param string $n_login  логин пользователя в eDir bocharov-ms
+ * @param string $n_context второй уровень в дереве  HQM/HQC и т.п.
+ * @param string $n_proxy_group наименование группы в ou=Internet_Proxy,ou=ACCESS,o=MCB
+ * @param string $n_proxy_group_dn  если выставленно это значение полный путь до нужной  группы
+ * @return boolean
+ */
+function mcb_proxy_ldap_userAddInternet($n_login,$n_context,$n_proxy_group,$n_proxy_group_dn = NULL) {
+  
+  $dbg = 0;
+
+//  $n_context = 'HQM';
+//  $n_login = 'bocharov-ms';
+//  $n_proxy_group = 'internet_full';
+  
+  $n_login_dn = "cn=$n_login,ou=$n_context,o=MCB";  
+  // Дабы 
+  if (is_null($n_proxy_group_dn)){
+    $n_proxy_group_dn = "cn=$n_proxy_group,ou=Internet_Proxy,ou=ACCESS,o=MCB";  
+  }
+  
+  $dn = "ou=$n_context,o=MCB";
+  $filter = "(cn=$n_login)";  
+  $securityEquals = $n_proxy_group_dn;
+  $groupMembership = $n_proxy_group_dn;
+    
+  // Получаем все атрибуты пользователя. Необходимо добавить обработку если такого пользователя нет
+  $dd = mcb_proxy_ldap_search($dn, $filter);
+  if($dd['count'] == 0){
+    // Епта, такого пользователя нет в LDAP
+    return false;
+  }
+  
+  // Если что-то нашли и оно в еденичном экземпляре
+  if($dd['count'] == 1){
+    $attributes = array(
+      'groupmembership',
+      'securityequals',
+    );      
+    $attr = _mcb_proxy_ldap_entry_get_attr($attributes, $dd);
+    $attr['groupmembership'][] = $securityEquals;
+    $attr['securityequals'][] = $groupMembership;
+    
+    // Добовляем 2 атрибута пользователю
+    $r = mcb_proxy_ldap_modify($n_login_dn, $attr);     
+    // Добовляем теперь в саму группу  пользователя, также 2 атрибута
+    $r = mcb_proxy_ldap_groupAddMember($n_proxy_group_dn, $n_login_dn);  
+  }
+    
 }
