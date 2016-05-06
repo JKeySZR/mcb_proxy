@@ -13,32 +13,32 @@ define('MCB_PROXY_UNLIMITED', 255);  // Интеренет без огранич
  * @return type
  */
 function _mcb_proxy_constants($opt = null) {
- $name = array(
+  $name = array(
     'MCB_PROXY_STANDART' => 0, // обычный интернет накладываются глобальные ограничения
     'MCB_PROXY_LIMITED' => 1, // Есть ограничения на сайты
     'MCB_PROXY_ALLOW_ONLY' => 2, // Доступ только на разрешенные явно сайты
     'MCB_PROXY_DENY_ONLY' => 3, // Доступ только на разрешенные явно сайты
     'MCB_PROXY_UNLIMITED' => 255, // Интеренет без ограничений    
   );
-   
- $value = array_flip($name);
- 
- switch ($opt) {
+
+  $value = array_flip($name);
+
+  switch ($opt) {
     case 'NAME':
       return $name;
-     break;
+      break;
     case 'NUM':
       return $value;
-     break;   
+      break;
 
     default:
-     break;
- }
-  
- return array(
-   'NAME' => $name,
-   'NUM' => $value,
- );
+      break;
+  }
+
+  return array(
+    'NAME' => $name,
+    'NUM' => $value,
+  );
 }
 
 function mcb_proxy_init() {
@@ -135,14 +135,14 @@ function mcb_proxy_menu() {
     'file' => 'mcb_proxy.admin.inc',
   );
 
-  $items['mcb/mcb_proxy/deny/%/%'] = array(   
+  $items['mcb/mcb_proxy/deny/%/%'] = array(
     'title' => 'Ограничения PROXY',
     'description' => 'Squid VAR пользователей', //описание страницы    
     'page callback' => 'mcb_proxy_page_deny',
-    'page arguments' => array(3,4),
+    'page arguments' => array(3, 4),
     'access arguments' => array('access content'),
     'type' => MENU_NORMAL_ITEM,
-  );  
+  );
 
   return $items;
 }
@@ -405,32 +405,7 @@ function mcb_proxy_ldap_modify($dn, $attributes) {
     $ldap_server = current($ldap_servers);
     // Run a search.
     if ($results = $ldap_server->modifyLdapEntry($dn, $attributes)) {
-      $dbg = 5;     
-    }
-    else {
-      drupal_set_message('Update LdapEntry oblomingo.', 'warning');
-      $table = FALSE;
-    }
-  }
-  else {
-    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
-    $table = FALSE;
-  }
-  return $table;
-}
-
-
-
-function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
-  $dbg = 0;
-//  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
-//  $condition = 'objectClass=groupOfNames';
-  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
-    // Get first server.
-    $ldap_server = current($ldap_servers);
-    // Run a search.
-    if ($results = $ldap_server->groupAddMember($group_dn, $user)) {
-      $dbg = 5;     
+      $dbg = 5;
     }
     else {
       drupal_set_message('Update LdapEntry oblomingo.', 'warning');
@@ -445,6 +420,91 @@ function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
 }
 
 /**
+ *  Добовляем пользователя в группу LDAP в eDir.
+ * 
+ * @param string $group_dn  'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
+ * @param string $user   'cn=bocharov-ms,ou=HQM,o=MCB'
+ * @return boolean
+ */
+function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
+  $dbg = 0;
+  $return = FALSE;
+  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    // Run a search.
+    // Для того чтобы добавить пользователя в группу в eDir  необходимо
+    // указать 2 атрибута
+    $ldap_server->groupGroupEntryMembershipsConfigured = TRUE;
+    $groupMembershipsAttr = array(
+      'member',
+      'equivalentToMe',
+    );
+
+    foreach ($groupMembershipsAttr as $Attr) {
+      $ldap_server->groupMembershipsAttr = $Attr;
+      if ($results = $ldap_server->groupAddMember($group_dn, $user)) {
+        $dbg = 5;
+        $return = TRUE;
+      }
+      else {
+        $msg = 'LDAPadd user [' . $user . '] to group [' . $group_dn .'] FAILED';
+        drupal_set_message($msg, 'warning');
+        $return = FALSE;        
+      }
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $return = FALSE;
+  }
+  return $return;
+}
+
+/**
+ *  Удаляем пользователя из группу LDAP в eDir.
+ * 
+ * @param string $group_dn  'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
+ * @param string $user   'cn=bocharov-ms,ou=HQM,o=MCB'
+ * @return boolean
+ */
+function mcb_proxy_ldap_groupRemoveMember($group_dn, $user) {
+  $dbg = 0;
+  $return = FALSE;
+  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    // Run a search.
+    // Для того чтобы добавить пользователя в группу в eDir  необходимо
+    // указать 2 атрибута
+    $ldap_server->groupGroupEntryMembershipsConfigured = TRUE;
+    $groupMembershipsAttr = array(
+      'member',
+      'equivalentToMe',
+    );
+
+    foreach ($groupMembershipsAttr as $Attr) {
+      $ldap_server->groupMembershipsAttr = $Attr;
+      if ($results = $ldap_server->groupRemoveMember($group_dn, $user)) {
+        $dbg = 5;
+        $return = TRUE;
+      }
+      else {
+        $msg = 'LDAPadd remove user [' . $user . '] from group [' . $group_dn .'] FAILED';
+        drupal_set_message($msg, 'warning');
+        $return = FALSE;        
+      }
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $return = FALSE;
+  }
+  return $return;
+}
+
+
+/**
  *  Добовляем группу в LDAP
  *  И добовляем ее членов
  * 
@@ -454,33 +514,6 @@ function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
 function mcb_proxy_ldap_group_add($group, $user) {
   $bg = ldap_servers_get_servers();
 
-//  $email = 'bocharov-ms@metcombank.ru';
-//  // Get all enabled enabled servers.
-//  if ($ldap_servers = ldap_servers_get_servers('metkom_novell', 'enabled')) {
-//    // Get first server.
-//    $ldap_server = current($ldap_servers);
-//    // Run a search.
-//    if ($results = $ldap_server->search('ou=Internet_Proxy,ou=ACCESS,o=MCB', 'objectClass=groupOfNames')) {
-//      $dbg = 5;
-//      $table = _mcb_proxy_ldap_get_group($results);
-//
-//      //$display = theme('ldap_query_results', array('results' => $results, 'ldap_query' => $ldap_query, 'show_query' => TRUE));
-//      //$content .= $display;
-//      dsm($results);
-//    }
-//    else {
-//      drupal_set_message(t('No results for that email.'));
-//    }
-//  }
-//  else {
-//    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
-//  }
-//   * @param string $group_dn as ldap dn
-//   * @param array $attributes in key value form
-//   *    $attributes = array(
-//   *      "attribute1" = "value",
-//   *      "attribute2" = array("value1", "value2"),
-//   *      )
   $dbg = 0;
 
   /**
@@ -512,7 +545,7 @@ function mcb_proxy_ldap_group_add($group, $user) {
     'equivalentToMe' => array(
       'cn=bocharov-ms,ou=HQM,o=MCB'
     )
-      );
+  );
 
   $group_id = 'sfa_16';
 
@@ -526,7 +559,7 @@ function mcb_proxy_ldap_group_add($group, $user) {
     'securityEquals' => array(
       'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
     )
-      );
+  );
 
   $res = $ldap_server->modifyLdapEntry($dn, $attributes);
 
@@ -543,9 +576,9 @@ function mcb_proxy_ldap_group_add($group, $user) {
  * 
  * @return string
  */
-function mcb_proxy_page_devel(){  
- $content = 'Debug'; 
- $dbg = 0;    
+function mcb_proxy_page_devel() {
+  $content = 'Debug';
+  $dbg = 0;
   $dn = 'cn=bocharov-ms,ou=HQM,o=MCB';
   $attributes = array(
     'groupMembership' => array(
@@ -554,41 +587,17 @@ function mcb_proxy_page_devel(){
     'securityEquals' => array(
       'cn=sites_allow_01,ou=Internet_Proxy,ou=ACCESS,o=MCB'
     )
-      );
- $group_dn = 'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB';
- $user = 'cn=bocharov-ms,ou=HQM,o=MCB';
- $r= mcb_proxy_ldap_groupAddMember($group_dn, $user);
- //$r = mcb_proxy_ldap_modify($dn, $attributes); 
- 
- return $content;
- 
-    $server = "internet.metcombank.net";
-    //ip address will work too i.e. 192.168.254.254 just make sure this is your public ip address not private as is the example
-
-    //specify your username
-    $username = "root";
-
-    //select port to use for SSH
-    $port = "22";
-
-    //command that will be run on server B
-    $command = "ls -1 /etc/squid/conf.d/sites";
-
-    //form full command with ssh and command, you will need to use links above for auto authentication help
-    $cmd_string = "ssh -p ".$port." ".$username."@".$server." ".$command;
-
-    //this will run the above command on server A (localhost of the php file)
-    exec($cmd_string, $output);
-
-    //return the output to the browser
-    //This will output the uptime for server B on page on server A
-    echo '<pre>';
-    print_r($output);
-    echo '</pre>';
-//
-//$stream = ssh2_exec($connection, 'ls -1 /etc/squid/conf.d/sites');
+  );
   
- return $content;
+  
+  $group_dn = 'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB';
+  $user = 'cn=bocharov-ms,ou=HQM,o=MCB';
+  //$r = mcb_proxy_ldap_groupAddMember($group_dn, $user);
+  $r = mcb_proxy_ldap_groupRemoveMember($group_dn, $user);
+  //$r = mcb_proxy_ldap_modify($dn, $attributes); 
+
+  return $content;
+    
 }
 
 /**
@@ -599,29 +608,29 @@ function mcb_proxy_page_devel(){
  * @param type $proxy_user
  * @return string
  */
-function mcb_proxy_page_deny($acl_name,$proxy_user){
+function mcb_proxy_page_deny($acl_name, $proxy_user) {
   $dbg = 0;
   $param = drupal_get_query_parameters();
   $log = drupal_get_path('module', 'mcb_proxy') . '/deny.log';
-  $text  = print_r($param,true);
+  $text = print_r($param, true);
   file_put_contents($log, $text . PHP_EOL . PHP_EOL, FILE_APPEND);
   $content = '';
   switch ($acl_name) {
     case 'blacklist':
       drupal_set_title('Черный список');
-      $content .= "<p>"; 
+      $content .= "<p>";
       $content .= "<b>$proxy_user</b> вы обратились к адресу: <br>";
-      $content .= "<em>" . $param['url'] . "</em> <br>"; 
+      $content .= "<em>" . $param['url'] . "</em> <br>";
       $content .= "Данный адрес находится в черном списке, доступ к нему закрыт.";
-      $content .= "</p>"; 
+      $content .= "</p>";
       break;
 
     default:
       break;
   }
-  
-  
-  
 
-  return $content ;
+
+
+
+  return $content;
 }
