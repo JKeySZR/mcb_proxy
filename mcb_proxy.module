@@ -395,7 +395,17 @@ function mcb_proxy_ldap_search($dn, $filter) {
   return $results;
 }
 
-function mcb_proxy_ldap_modify($dn, $attributes) {
+/**
+ * Функция изменения атрибутов у какой-либо записи в LDAP.
+ * 
+ * @param type $dn
+ * @param type $attributes
+ * @param boolean $del это флажок $old_attributes в LdapServer.class modifyLdapEntry
+ *  о том что необходимо  удалить другие атрибы, если его не выставить
+ *  то данные просто дополняются , а не перезаписываются
+ * @return boolean
+ */
+function mcb_proxy_ldap_modify($dn, $attributes, $del = FALSE) {
   $dbg = 0;
 //  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
 //  $condition = 'objectClass=groupOfNames';
@@ -403,7 +413,7 @@ function mcb_proxy_ldap_modify($dn, $attributes) {
     // Get first server.
     $ldap_server = current($ldap_servers);
     // Run a search.
-    if ($results = $ldap_server->modifyLdapEntry($dn, $attributes)) {
+    if ($results = $ldap_server->modifyLdapEntry($dn, $attributes,$del)) {
       $dbg = 5;
       $result = TRUE;
     }
@@ -420,27 +430,30 @@ function mcb_proxy_ldap_modify($dn, $attributes) {
 }
 
 /**
- *  Добовляем пользователя в группу LDAP в eDir.
- * 
+ *  Добовляем пользователя в группу LDAP в eDir. 
  * @param string $group_dn  'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
  * @param string $user   'cn=bocharov-ms,ou=HQM,o=MCB'
+ * @param array $groupMembershipsAttr 
  * @return boolean
  */
-function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
+function mcb_proxy_ldap_groupAddMember($group_dn, $user, $groupMembershipsAttr = NULL) {
+
+  // Для того чтобы добавить пользователя в группу в eDir
+  //   необходимо добавить 2  атрибута  
+  if (is_null($groupMembershipsAttr)) {
+    $groupMembershipsAttr = array(
+      'member',
+      'equivalentToMe',
+    );
+  }
+
   $dbg = 0;
   $return = FALSE;
   if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
     // Get first server.
     $ldap_server = current($ldap_servers);
-    // Run a search.
-    // Для того чтобы добавить пользователя в группу в eDir  необходимо
     // указать 2 атрибута
     $ldap_server->groupGroupEntryMembershipsConfigured = TRUE;
-    $groupMembershipsAttr = array(
-      'member',
-      'equivalentToMe',
-    );
-
     foreach ($groupMembershipsAttr as $Attr) {
       $ldap_server->groupMembershipsAttr = $Attr;
       if ($results = $ldap_server->groupAddMember($group_dn, $user)) {
@@ -448,9 +461,9 @@ function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
         $return = TRUE;
       }
       else {
-        $msg = 'LDAPadd user [' . $user . '] to group [' . $group_dn .'] FAILED';
+        $msg = 'LDAPadd user [' . $user . '] to group [' . $group_dn . '] FAILED';
         drupal_set_message($msg, 'warning');
-        $return = FALSE;        
+        $return = FALSE;
       }
     }
   }
@@ -458,31 +471,36 @@ function mcb_proxy_ldap_groupAddMember($group_dn, $user) {
     drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
     $return = FALSE;
   }
+
   return $return;
 }
 
+
 /**
- *  Удаляем пользователя из группу LDAP в eDir.
- * 
+ *  Добовляем пользователя в группу LDAP в eDir. 
  * @param string $group_dn  'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
  * @param string $user   'cn=bocharov-ms,ou=HQM,o=MCB'
+ * @param array $groupMembershipsAttr 
  * @return boolean
  */
-function mcb_proxy_ldap_groupRemoveMember($group_dn, $user) {
+function mcb_proxy_ldap_groupRemoveMember($group_dn, $user, $groupMembershipsAttr = NULL) {
+
+  // Для того чтобы добавить пользователя в группу в eDir
+  //   необходимо добавить 2  атрибута  
+  if (is_null($groupMembershipsAttr)) {
+    $groupMembershipsAttr = array(
+      'member',
+      'equivalentToMe',
+    );
+  }
+
   $dbg = 0;
   $return = FALSE;
   if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
     // Get first server.
     $ldap_server = current($ldap_servers);
-    // Run a search.
-    // Для того чтобы добавить пользователя в группу в eDir  необходимо
     // указать 2 атрибута
     $ldap_server->groupGroupEntryMembershipsConfigured = TRUE;
-    $groupMembershipsAttr = array(
-      'member',
-      'equivalentToMe',
-    );
-
     foreach ($groupMembershipsAttr as $Attr) {
       $ldap_server->groupMembershipsAttr = $Attr;
       if ($results = $ldap_server->groupRemoveMember($group_dn, $user)) {
@@ -490,9 +508,9 @@ function mcb_proxy_ldap_groupRemoveMember($group_dn, $user) {
         $return = TRUE;
       }
       else {
-        $msg = 'LDAPadd remove user [' . $user . '] from group [' . $group_dn .'] FAILED';
+        $msg = 'LDAP remove user [' . $user . '] from group [' . $group_dn . '] FAILED';
         drupal_set_message($msg, 'warning');
-        $return = FALSE;        
+        $return = FALSE;
       }
     }
   }
@@ -500,76 +518,14 @@ function mcb_proxy_ldap_groupRemoveMember($group_dn, $user) {
     drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
     $return = FALSE;
   }
+
   return $return;
 }
 
 
-/**
- *  Добовляем группу в LDAP
- *  И добовляем ее членов
- * 
- * @param type $group
- * @param type $user
- */
-function mcb_proxy_ldap_group_add($group, $user) {
-  $bg = ldap_servers_get_servers();
+    
 
-  $dbg = 0;
 
-  /**
-   * Из обращения в саппорт Novella
-   * [#931]: Программный доступ к дереву.
-   * 
-   * На самом деле вносить изменения в eDir через LDAP вполне нормально, и никаких проблем быть не должно, но в вопросе членства в группах вы действительно совершили ошибку:
-   * членство в группе в понимании eDirectory это 2 пары аттрибутов т.е. итого 4:
-   * эти два у группы надо прописать в DN пользователя:
-   * member 
-   * equivalentToMe
-   * 
-   * а эти два наоборот у пользователя со значением DN группы:
-   * memberOf
-   * sequrityEquals
-   */
-// Подключаемся к LDAP  с правами записи.
-  $ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled');
-  $ldap_server = current($ldap_servers);
-
-//  Сначала создадим группу  и добавим в нее членов
-  $attributes = array(
-    'ACL' => '2#entry#[Root]#member',
-    'owner' => 'cn=admin002,o=MCB',
-    'objectClass' => array('groupOfNames', 'Top'),
-    'member' => array(
-      'cn=bocharov-ms,ou=HQM,o=MCB'
-    ),
-    'equivalentToMe' => array(
-      'cn=bocharov-ms,ou=HQM,o=MCB'
-    )
-  );
-
-  $group_id = 'sfa_16';
-
-  $res = $ldap_server->groupAddGroup("cn=$group_id,ou=Internet_Proxy,ou=ACCESS,o=MCB", $attributes);
-
-  $dn = 'cn=bocharov-ms,ou=HQM,o=MCB';
-  $attributes = array(
-    'groupMembership' => array(
-      'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
-    ),
-    'securityEquals' => array(
-      'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
-    )
-  );
-
-  $res = $ldap_server->modifyLdapEntry($dn, $attributes);
-
-// После чего необходимо  пользователю также добавить  записи.
-// атрибут securityEquals  = cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB 
-// и  groupMembership =  cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB
-  if ($res) {
-    $rr = $ldap_server->groupAddMember('cn=sfa_15,ou=Internet_Proxy,ou=ACCESS,o=MCB', array('cn=bocharov-ms,ou=HQM,o=MCB'));
-  }
-}
 
 /**
  * Для отладки 
@@ -579,20 +535,21 @@ function mcb_proxy_ldap_group_add($group, $user) {
 function mcb_proxy_page_devel() {
   $content = 'Debug';
   $dbg = 0;
-    
+
 
   $n_context = 'HQM';
   $n_login = 'bocharov-ms';
-  $n_proxy_group = 'internet';
-  
-  $red = mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group);
+//  $n_proxy_group = 'internet_full';
+  $n_proxy_group = 'sfa_labutina-ee_nnv';
+
+  //$red = mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group);
+  $red = mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group);
 
   // $r = mcb_proxy_ldap_groupAddMember($group_dn, $user);
   // $r = mcb_proxy_ldap_groupRemoveMember($group_dn, $user);
   // $r = mcb_proxy_ldap_modify($dn, $attributes); 
-  
+
   return $content;
-    
 }
 
 /**
@@ -630,33 +587,54 @@ function mcb_proxy_page_deny($acl_name, $proxy_user) {
   return $content;
 }
 
-function _mcb_proxy_ldap_getUser($user){
+function _mcb_proxy_ldap_getUser($user) {
   $dbg = 0;
 //  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
 //  $condition = 'objectClass=groupOfNames';  
-  
 }
 
-function _mcb_proxy_ldap_entry_get_attr($attributes,$entry){
+/**
+ * Вспомогательная функция по разбору результата поиска в LDAP чтобы
+ * получить интересуемые параметры
+ * 
+ * 
+ * @param array $attributes
+ * @param type $entry
+ * @return array массив где в качестве ключа название атрибута.
+ */
+function _mcb_proxy_ldap_entry_get_attr($attributes, $entry) {
   $dbg = 0;
-  if(! is_array($attributes) ) 
+  if (!is_array($attributes))
     return FALSE;
   $result = array();
   foreach ($entry[0] as $name => $value) {
-    if(is_numeric($name)) continue;
+    if (is_numeric($name))
+      continue;
     // Если это тот атрибут который нам нужет тогда вычленяем его.
-    if(in_array(strtolower($name), $attributes )){
+    if (in_array(strtolower($name), $attributes)) {
       $dbg = 1;
       unset($value['count']);
       $result[$name] = $value;
     }
   }
   return $result;
-  
 }
 
 /**
  * Добавления указанного пользователя в соответсвующую группу в LDAP
+ * 
+ * Из обращения в саппорт Novella
+ * [#931]: Программный доступ к дереву.
+ * 
+ * На самом деле вносить изменения в eDir через LDAP вполне нормально, и никаких проблем быть не должно, но в вопросе членства в группах вы действительно совершили ошибку:
+ * членство в группе в понимании eDirectory это 2 пары аттрибутов т.е. итого 4:
+ * эти два у группы надо прописать в DN пользователя:
+ * member 
+ * equivalentToMe
+ * 
+ * а эти два наоборот у пользователя со значением DN группы:
+ * memberOf
+ * sequrityEquals 
  * 
  * @param string $n_login  логин пользователя в eDir bocharov-ms
  * @param string $n_context второй уровень в дереве  HQM/HQC и т.п.
@@ -664,46 +642,111 @@ function _mcb_proxy_ldap_entry_get_attr($attributes,$entry){
  * @param string $n_proxy_group_dn  если выставленно это значение полный путь до нужной  группы
  * @return boolean
  */
-function mcb_proxy_ldap_userAddInternet($n_login,$n_context,$n_proxy_group,$n_proxy_group_dn = NULL) {
-  
+function mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group, $n_proxy_group_dn = NULL) {
+
   $dbg = 0;
 
 //  $n_context = 'HQM';
 //  $n_login = 'bocharov-ms';
 //  $n_proxy_group = 'internet_full';
-  
-  $n_login_dn = "cn=$n_login,ou=$n_context,o=MCB";  
+
+  $n_login_dn = "cn=$n_login,ou=$n_context,o=MCB";
   // Дабы 
-  if (is_null($n_proxy_group_dn)){
-    $n_proxy_group_dn = "cn=$n_proxy_group,ou=Internet_Proxy,ou=ACCESS,o=MCB";  
+  if (is_null($n_proxy_group_dn)) {
+    $n_proxy_group_dn = "cn=$n_proxy_group,ou=Internet_Proxy,ou=ACCESS,o=MCB";
   }
-  
+
   $dn = "ou=$n_context,o=MCB";
-  $filter = "(cn=$n_login)";  
+  $filter = "(cn=$n_login)";
   $securityEquals = $n_proxy_group_dn;
   $groupMembership = $n_proxy_group_dn;
-    
+
   // Получаем все атрибуты пользователя. Необходимо добавить обработку если такого пользователя нет
   $dd = mcb_proxy_ldap_search($dn, $filter);
-  if($dd['count'] == 0){
+  if ($dd['count'] == 0) {
     // Епта, такого пользователя нет в LDAP
     return false;
   }
-  
+
   // Если что-то нашли и оно в еденичном экземпляре
-  if($dd['count'] == 1){
+  if ($dd['count'] == 1) {
     $attributes = array(
       'groupmembership',
       'securityequals',
-    );      
+    );
+    // Получим текущие значения нужных атрибутов и сохраним их
     $attr = _mcb_proxy_ldap_entry_get_attr($attributes, $dd);
     $attr['groupmembership'][] = $securityEquals;
     $attr['securityequals'][] = $groupMembership;
-    
+
     // Добовляем 2 атрибута пользователю
-    $r = mcb_proxy_ldap_modify($n_login_dn, $attr);     
+    $r = mcb_proxy_ldap_modify($n_login_dn, $attr);
     // Добовляем теперь в саму группу  пользователя, также 2 атрибута
-    $r = mcb_proxy_ldap_groupAddMember($n_proxy_group_dn, $n_login_dn);  
+    $r = mcb_proxy_ldap_groupAddMember($n_proxy_group_dn, $n_login_dn);
   }
+}
+
+
+/**
+ * Удаление указанного пользователя из указанной группы в LDAP
+ * 
+ * @param string $n_login  логин пользователя в eDir bocharov-ms
+ * @param string $n_context второй уровень в дереве  HQM/HQC и т.п.
+ * @param string $n_proxy_group наименование группы в ou=Internet_Proxy,ou=ACCESS,o=MCB
+ * @param string $n_proxy_group_dn  если выставленно это значение полный путь до нужной  группы
+ * @return boolean
+ */
+function mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group, $n_proxy_group_dn = NULL) {
+
+  $dbg = 0;
+
+//  $n_context = 'HQM';
+//  $n_login = 'bocharov-ms';
+//  $n_proxy_group = 'internet_full';
+
+  $n_login_dn = "cn=$n_login,ou=$n_context,o=MCB";
+  // Дабы 
+  if (is_null($n_proxy_group_dn)) {
+    $n_proxy_group_dn = "cn=$n_proxy_group,ou=Internet_Proxy,ou=ACCESS,o=MCB";
+  }
+
+  $dn = "ou=$n_context,o=MCB";
+  $filter = "(cn=$n_login)";
+  $securityEquals = $n_proxy_group_dn;
+  $groupMembership = $n_proxy_group_dn;
+
+  // Получаем все атрибуты пользователя. Необходимо добавить обработку если такого пользователя нет
+  $dd = mcb_proxy_ldap_search($dn, $filter);
+  if ($dd['count'] == 0) {
+    // Епта, такого пользователя нет в LDAP
+    return false;
+  }
+
+  // Если что-то нашли и оно в еденичном экземпляре
+  if ($dd['count'] == 1) {
+    $attributes = array(
+      'groupmembership',
+      'securityequals',
+    );
     
+    
+    
+    // Получим текущие значения нужных атрибутов и сохраним их
+    $attr = _mcb_proxy_ldap_entry_get_attr($attributes, $dd);
+    
+    foreach ($attributes as $key) {
+      if(array_key_exists($key, $attr) ){
+        foreach ($attr[$key] as $indx => $value) {
+          if ($value == $groupMembership ){
+            unset($attr[$key][$indx]);
+          }                         
+        }
+      }
+    }
+    
+    // Удаляем 2 атрибута у пользователя
+    $r = mcb_proxy_ldap_modify($n_login_dn, $attr,true);
+    // Удаляем теперь из самой группы  указанного пользователя, также 2 атрибута
+    $r = mcb_proxy_ldap_groupRemoveMember($n_proxy_group_dn, $n_login_dn);
+  }
 }
