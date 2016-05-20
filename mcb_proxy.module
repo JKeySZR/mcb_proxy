@@ -72,6 +72,10 @@ function mcb_proxy_menu() {
     'type' => MENU_NORMAL_ITEM,
     'file' => 'mcb_proxy.admin.inc',
   );
+    $items['mcb/mcb_proxy/admin/groups'] = array(
+    'title' => 'Управление группами',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );  
   
  $items['mcb/mcb_proxy/admin/group/add'] = array(
     'title' => 'Добавить новую группу',
@@ -82,12 +86,7 @@ function mcb_proxy_menu() {
     'file' => 'mcb_proxy.admin.inc',
   );  
 
-    $items['mcb/mcb_proxy/admin/groups'] = array(
-    'title' => 'Управление группами',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-  );
    
-
   $items['mcb/mcb_proxy/admin/users'] = array(
     'title' => 'List of users',
     'page callback' => 'mcb_proxy_page_users',
@@ -134,6 +133,31 @@ function mcb_proxy_menu() {
     'type' => MENU_CALLBACK,
   );
   
+  // LDAP - eDir
+
+  $items['mcb/mcb_proxy/admin/ldap'] = array(
+    'title' => 'LDAP (eDir)',
+    'page callback' => 'mcb_proxy_page_groups',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+  
+    $items['mcb/mcb_proxy/admin/ldap/groups'] = array(
+    'title' => 'Группы интернета',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );    
+    
+  $items['mcb/mcb_proxy/admin/ldap/search'] = array(
+    'title' => 'Поиск в LDAP',
+    'access arguments' => array('access content'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_ldap_search'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'mcb_proxy.admin.inc',
+  );      
+       
+
+    
   
   $items['mcb/mcb_proxy/index'] = array(
     'title' => t('Custom module'),
@@ -149,12 +173,7 @@ function mcb_proxy_menu() {
     'type' => MENU_LOCAL_TASK,
   );
 
-  $items['mcb/mcb_proxy/groups'] = array(
-    'title' => 'Groups in LDAP',
-    'page callback' => 'mcb_proxy_page_groups',
-    'access arguments' => array('access content'),
-    'type' => MENU_LOCAL_TASK,
-  );
+
 
 
   $items['mcb/mcb_proxy/devel'] = array(
@@ -322,8 +341,6 @@ function _mcb_proxy_ldap_get_group(&$results) {
   }
   unset($v);
   unset($k);
-
-
 
   foreach ($results as $i => $entry) {
     $dbg = 5;

@@ -481,13 +481,13 @@ function mcb_proxy_form_group_add($form_id, &$form_state) {
     '#size' => 40,
     '#maxlength' => 30,
   );
-  
-   $form['group_desc'] = array(
+
+  $form['group_desc'] = array(
     '#type' => 'textarea',
-    '#title' => 'Описание группы, чтобы было понятно нахрен она нужна',    
+    '#title' => 'Описание группы, чтобы было понятно нахрен она нужна',
     '#rows' => 5,
   );
-  
+
   $form['vt'] = array(
     '#type' => 'vertical_tabs',
   );
@@ -518,10 +518,10 @@ function mcb_proxy_form_group_add($form_id, &$form_state) {
 
   $form['sites_sfd']['sfd'] = array(
     '#type' => 'textarea',
-    '#title' => 'Sites filter deny',    
+    '#title' => 'Sites filter deny',
     '#rows' => 15,
   );
-  
+
   $form['submit'] = array(
     '#value' => 'Добавить',
     '#type' => 'submit',
@@ -531,7 +531,6 @@ function mcb_proxy_form_group_add($form_id, &$form_state) {
   return $form;
 }
 
-
 /**
  *  Валидируем форму добавления новой группы во
  * 
@@ -539,21 +538,19 @@ function mcb_proxy_form_group_add($form_id, &$form_state) {
 function mcb_proxy_form_group_add_validate($form_id, &$form_state) {
   $dbg = 0;
   $values = $form_state['values'];
-  $group_name = trim($values['group_name']);  
+  $group_name = trim($values['group_name']);
   // Проверяем есть ли такая группа  
   // Учитывая что у нас схема в кодировк utf8_unicode_ci  нам пофиг на регистр при сравнении
-  $query = db_select('mcb_proxy_group','gr')
+  $query = db_select('mcb_proxy_group', 'gr')
       ->fields('gr')
       ->condition('name', $group_name)
       ->execute();
-  $count = $query->fetchAll();    
-  
- if (count($count) > 0) {
+  $count = $query->fetchAll();
+
+  if (count($count) > 0) {
     form_set_error('group_name', 'Такая группа уже есть!');
   }
-    
 }
-
 
 /**
  *  Обрабатываем форму добавления новой группы во
@@ -572,7 +569,7 @@ function mcb_proxy_form_group_add_submit($form_id, &$form_state) {
   // Обработка строк из текстового поля
   if (isset($values['sfa']) && $values['sfa'] != '') {
     $sfa = _mcb_proxy_sites_filter($values['sfa']);
-    $data['sfa'] = $sfa;    
+    $data['sfa'] = $sfa;
   }
   // Обработка строк из текстового поля
   if (isset($values['sfd']) && $values['sfa'] != '') {
@@ -580,10 +577,10 @@ function mcb_proxy_form_group_add_submit($form_id, &$form_state) {
     $data['sfd'] = $sfd;
   }
   try {
-  // Пишем в таблицу данные
-  $query= db_insert('mcb_proxy_group')
-      ->fields($data);
-  $id = $query->execute();  
+    // Пишем в таблицу данные
+    $query = db_insert('mcb_proxy_group')
+        ->fields($data);
+    $id = $query->execute();
   }
   catch (Exception $exc) {
 
@@ -592,19 +589,16 @@ function mcb_proxy_form_group_add_submit($form_id, &$form_state) {
     $file = "File: " . $exc->getFile();
     $line = "Line: " . $exc->getLine();
     //$error_inf = "Trace: " . $exc->getTraceAsString();
-    dpm($exc->getTraceAsString(),'ERR-15','error');
+    dpm($exc->getTraceAsString(), 'ERR-15', 'error');
     $out_str = $msg . '<br>' . $code . '<br>' . $file . '<br>' . $line . '<br>' . $error_inf . '<br>';
     drupal_set_message($out_str, 'error');
   }
-  
+
   $message = "Группа " . $values['group_name'] . " добавленна!";
-  if ($id){
+  if ($id) {
     drupal_set_message($message, 'status');
   }
 }
-
-
-
 
 /**
  * Implements hook_forms();
@@ -651,7 +645,7 @@ function mcb_proxy_form_groups_list($form_id, &$form_state) {
   $results = mcb_proxy_ldap_search($dn, $filter);
   $table = _mcb_proxy_ldap_get_group($results);
   //$rows = $table;  
-  
+
   $header = array(
     'eDir?',
     'Group Name',
@@ -667,14 +661,13 @@ function mcb_proxy_form_groups_list($form_id, &$form_state) {
     // Позаимствовл от модуля BSS  надо будет переделать
     $noexist = '<div class="blocked"> </div>';
     $exist = '<div class="unblocked"> </div>';
-    if(isset( $table[$row->name] )){
+    if (isset($table[$row->name])) {
       $ST = $exist;
     }
-    else{
+    else {
       $ST = $noexist;
     }
-      
-    
+
     $rows[$row->id] = array(
       $ST,
       $row->name,
@@ -694,26 +687,118 @@ function mcb_proxy_form_groups_list($form_id, &$form_state) {
   );
 
   $path = '/mcb/mcb_proxy/admin/group/add';
-  
-  $link = l('Добавить новую группу', '/mcb/mcb_proxy/admin/group/add', 
-      array(
-        'query' => array(
-          //'destination' => drupal_get_destination()
-          'destination' => current_path()
-          ),
-        'attributes' => array(
-          'title' => 'Добавить новую internet группу'
-          )
-        )
-      );
-  
-  
+
+  $link = l('Добавить новую группу', '/mcb/mcb_proxy/admin/group/add', array(
+    'query' => array(
+      //'destination' => drupal_get_destination()
+      'destination' => current_path()
+    ),
+    'attributes' => array(
+      'title' => 'Добавить новую internet группу'
+    )
+      )
+  );
+
+
   $form['addgroup'] = array(
     '#value' => 'Добавить новую группу',
     '#type' => 'item',
     '#markup' => '<div class="mcb_proxy addGroup">' . $link . '</div>',
-    
   );
 
   return $form;
+}
+
+/**
+ * Implements hook_forms();
+ */
+function mcb_proxy_form_ldap_search($form_id, &$form_state) {
+  $dbg = 0;
+  //if (!isset($form_state['input'])) {
+//  if (count($form_state['input'])==0) {    
+  $form['dn'] = array(
+    '#type' => 'textfield',
+    '#title' => 'LDAP DN search',
+    '#size' => 40,
+    '#maxlength' => 30,
+    '#default_value' => 'ou=HQM,o=MCB',
+  );
+
+  $form['filter'] = array(
+    '#type' => 'textarea',
+    '#title' => 'filters',
+    '#default_value' => '(&(objectClass=Person)(objectClass=inetOrgPerson)(loginDisabled=FALSE))',
+    '#rows' => 5,
+    '#description' => "<b>Примеры:</b><br>"
+    . "Найти насяльников: (&(objectClass=Person)(objectClass=inetOrgPerson)(title=Начальник*))",
+  );
+
+  $form['submit'] = array(
+    '#value' => 'Найти!',
+    '#type' => 'submit',
+    '#attributes' => array('class' => array('btn find')),
+  );
+
+
+  if (!empty($form_state['values'])) {
+
+    $rows = mcb_proxy_ldap_search_users($form_state['values']);
+    $header = array(
+      array('data' => 'DN',),
+      array('data' => 'title',),
+      array('data' => 'F.I.O',),
+    );
+
+    $form['table'] = array
+      (
+      '#type' => 'tableselect',
+      '#header' => $header,
+      '#options' => $rows,
+      '#empty' => 'Группы отсутствуют, необходимо их создать',
+    );
+  }
+
+
+  return $form;
+}
+
+function mcb_proxy_form_ldap_search_submit($form_id, &$form_state) {
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ *  Поиск всех пользователей в заданном контексте и фильтре
+ * 
+ * @param type $values
+ */
+function mcb_proxy_ldap_search_users($values) {
+  $dbg = 1;
+
+  $dn = $values['dn'];
+  $filter = $values['filter'];
+
+  $patterns = array();
+  $patterns[0] = '/\n/';
+  $replacements = array();
+  $replacements[0] = '';
+  $filter = preg_replace($patterns, $replacements, $filter);
+
+
+  $result = mcb_proxy_ldap_search($dn, $filter);
+  $rows = array();
+  if ($result) {
+    $count = $result['count'];
+    unset($result['count']);
+
+    foreach ($result as $item) {
+      $dbg = 0;
+      $rows[$item['dn']] = array(
+        $item['dn'],
+        $item['title'][0],
+        $item['sn'][0],
+      );
+    }
+  }
+
+  return $rows;
 }
