@@ -64,6 +64,77 @@ function mcb_proxy_permission() {
 
 function mcb_proxy_menu() {
   $items = array();
+
+  $items['mcb/mcb_proxy/admin'] = array(
+    'access arguments' => array('access content'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_groups_list'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+  );
+  
+ $items['mcb/mcb_proxy/admin/group/add'] = array(
+    'title' => 'Добавить новую группу',
+    'access arguments' => array('access content'),
+    'page callback' => 'drupal_get_form',    
+    'page arguments' => array('mcb_proxy_form_group_add'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+  );  
+
+    $items['mcb/mcb_proxy/admin/groups'] = array(
+    'title' => 'Управление группами',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+   
+
+  $items['mcb/mcb_proxy/admin/users'] = array(
+    'title' => 'List of users',
+    'page callback' => 'mcb_proxy_page_users',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 20,
+  );
+
+  $items['mcb/mcb_proxy/admin/user/edit/%'] = array(
+    'title' => 'Редактирование пользователя proxy',
+    'description' => 'Squid управление пользователями', //описание страницы
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_user_edit', 4),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+    'weight' => 200,
+  );
+
+  $items['mcb/mcb_proxy/admin/user/add'] = array(
+    'title' => 'Добавить пользователя proxy',
+    'description' => 'Squid управление пользователями', //описание страницы
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_user_add'),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+    'weight' => 100,
+  );  
+  
+  $items['mcb/mcb_proxy/admin/user/import'] = array(
+    'title' => 'Импортировать пользователей proxy',
+    'description' => 'Squid import пользователей', //описание страницы
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcb_proxy_form_user_import'),
+    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'mcb_proxy.admin.inc',
+  );
+
+  $items['mcb/mcb_proxy/admin/user/autocomplete'] = array(
+    'page callback' => 'mcb_proxy_autocomplete_user_ldap',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  
   $items['mcb/mcb_proxy/index'] = array(
     'title' => t('Custom module'),
     'page callback' => 'mcb_proxy_index_action',
@@ -79,52 +150,14 @@ function mcb_proxy_menu() {
   );
 
   $items['mcb/mcb_proxy/groups'] = array(
-    'title' => 'Add site to DB',
+    'title' => 'Groups in LDAP',
     'page callback' => 'mcb_proxy_page_groups',
     'access arguments' => array('access content'),
     'type' => MENU_LOCAL_TASK,
   );
 
-  $items['mcb/mcb_proxy/users'] = array(
-    'title' => 'List of users',
-    'page callback' => 'mcb_proxy_page_users',
-    'access arguments' => array('access content'),
-    'type' => MENU_LOCAL_TASK,
-  );
 
-  $items['mcb/mcb_proxy/user/edit/%'] = array(
-    'title' => 'Редактирование пользователя proxy',
-    'description' => 'Squid управление пользователями', //описание страницы
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('mcb_proxy_form_user_edit', 4),
-    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
-    'type' => MENU_NORMAL_ITEM,
-    'file' => 'mcb_proxy.admin.inc',
-    'weight' => 200,
-  );
-
-  $items['mcb/mcb_proxy/user/add'] = array(
-    'title' => 'Добавить пользователя proxy',
-    'description' => 'Squid управление пользователями', //описание страницы
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('mcb_proxy_form_user_add'),
-    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
-    'type' => MENU_NORMAL_ITEM,
-    'file' => 'mcb_proxy.admin.inc',
-    'weight' => 100,
-  );
-
-  $items['mcb/mcb_proxy/user/import'] = array(
-    'title' => 'Импортировать пользователей proxy',
-    'description' => 'Squid import пользователей', //описание страницы
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('mcb_proxy_form_user_import'),
-    'access arguments' => array('access content'), //  Ограничиваем доступ, по ролям через hook_permission
-    'type' => MENU_NORMAL_ITEM,
-    'file' => 'mcb_proxy.admin.inc',
-  );
-
-  $items['mcb/mcb_proxy/user/devel'] = array(
+  $items['mcb/mcb_proxy/devel'] = array(
     'title' => 'Импортировать пользователей proxy',
     'description' => 'Squid import пользователей', //описание страницы
     //'page callback' => 'mcb_proxy_page_user_import',
@@ -135,6 +168,8 @@ function mcb_proxy_menu() {
     'file' => 'mcb_proxy.admin.inc',
   );
 
+  // На данный адресс  перенаправляет SQUID вслучаии запрета
+  // Посл чего анализируем входящие параметры, и в зависимости от скрипта выводим соответствуеще сообщение
   $items['mcb/mcb_proxy/deny/%/%'] = array(
     'title' => 'Ограничения PROXY',
     'description' => 'Squid VAR пользователей', //описание страницы    
@@ -238,6 +273,11 @@ function mcb_proxy_page_groups() {
     array('data' => 'Members of group',),
   );
 
+  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
+  $filter = '(objectClass=groupOfNames)';
+  $results = mcb_proxy_ldap_search($dn, $filter);
+  $table = _mcb_proxy_ldap_get_group($results);
+
   $rows = $table;
 
 //  $rows = array(
@@ -314,12 +354,11 @@ function _mcb_proxy_ldap_get_group(&$results) {
  */
 function mcb_proxy_page_users() {
   $content = '<p>';
-  $content .= '<b><a href="/mcb/mcb_proxy/user/add" >Добавить пользователя </a></b><br>';
-  $content .= '<b><a href="/mcb/mcb_proxy/user/import" >Импорт пользователей</a></b>';
+  $content .= '<b><a href="/mcb/mcb_proxy/admin/user/add" >Добавить пользователя </a></b><br>';
+  $content .= '<b><a href="/mcb/mcb_proxy/admin/user/import" >Импорт пользователей</a></b>';
   $content .= '</p>';
   $headers = array(
     array('data' => 'User Name',),
-    array('data' => 'context',),
     array('data' => 'inet type',),
     array('data' => 'LDAP Groups',),
   );
@@ -333,14 +372,13 @@ function mcb_proxy_page_users() {
   $ff = _mcb_proxy_constants('NUM');
 
   foreach ($result as $value) {
-    // Ищем пользователя в LDAP
-    $member = 'cn=' . $value->login . ',ou=' . strtoupper($value->context) . ',o=MCB';
+    // Ищем пользователя в LDAP    
+    $member = $value->login;
     $filter = '(& (objectClass=groupOfNames) (member=' . $member . ') )';
     $ldap_groups = _mcb_proxy_ldap_get_group(mcb_proxy_ldap_search($dn, $filter));
     $groups = implode('<br>', array_keys($ldap_groups));
     $rows[] = array(
       '<a href="/mcb/mcb_proxy/user/edit/' . $value->id . '" >' . $value->login . ' </a>',
-      $value->context,
       $ff[$value->inet],
       $groups,
     );
@@ -372,6 +410,13 @@ function mcb_proxy_page_users() {
   return $content;
 }
 
+/**
+ *  Ищем чего либо в LDAP
+ * 
+ * @param type $dn
+ * @param type $filter
+ * @return boolean
+ */
 function mcb_proxy_ldap_search($dn, $filter) {
   $dbg = 0;
 //  $dn = 'ou=Internet_Proxy,ou=ACCESS,o=MCB';
@@ -396,6 +441,89 @@ function mcb_proxy_ldap_search($dn, $filter) {
 }
 
 /**
+ * Создание группы в LDAP
+ * 
+ * @param string $group_dn "cn=NAME_OF_GROUP,ou=Internet_Proxy,ou=ACCESS,o=MCB";
+ * @param array $attributes можно не задавать , добавит необходимые атрибуты сам
+ * @return boolean
+ */
+function mcb_proxy_ldap_groupAddGroup($group_dn, $attributes = array()) {
+
+  // Для того чтобы добавить пользователя в группу в eDir
+  //   необходимо добавить 2  атрибута  
+  if (count($attributes) == 0) {
+    $attributes = array(
+      'owner' => 'cn=admin002,o=MCB',
+      'objectClass' => array('groupOfNames', 'Top'),
+      'ACL' => '2#entry#[Root]#member',
+    );
+//  $attributes = array(
+//    'ACL' => '2#entry#[Root]#member',
+//    'owner' => 'cn=admin002,o=MCB',
+//    'objectClass' => array('groupOfNames', 'Top'),
+//      );                
+  }
+
+  $dbg = 0;
+  $return = FALSE;
+  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    if ($results = $ldap_server->groupAddGroup($group_dn, $attributes)) {
+      $dbg = 5;
+      $msg = 'LDAPadd create group [' . $group_dn . '] SUCSESS';
+      drupal_set_message($msg, 'status');
+      $return = TRUE;
+    }
+    else {
+      $msg = 'LDAPadd create group [' . $group_dn . '] FAILED';
+      drupal_set_message($msg, 'warning');
+      $return = FALSE;
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $return = FALSE;
+  }
+
+  return $return;
+}
+
+/**
+ * Удаление из  LDAP  указанной группы 
+ * 
+ * @param string $group_dn
+ * @param type $only_if_group_empty
+ * @return boolean
+ */
+function mcb_proxy_ldap_groupRemoveGroup($group_dn, $only_if_group_empty = TRUE) {
+
+  $dbg = 0;
+  $return = FALSE;
+  if ($ldap_servers = ldap_servers_get_servers('edir-rw', 'enabled')) {
+    // Get first server.
+    $ldap_server = current($ldap_servers);
+    if ($results = $ldap_server->groupRemoveGroup($group_dn, $only_if_group_empty)) {
+      $dbg = 5;
+      $msg = 'LDAPadd Remove group [' . $group_dn . '] SUCSESS';
+      drupal_set_message($msg, 'status');
+      $return = TRUE;
+    }
+    else {
+      $msg = 'LDAPadd Remove group [' . $group_dn . '] FAILED';
+      drupal_set_message($msg, 'warning');
+      $return = FALSE;
+    }
+  }
+  else {
+    drupal_set_message(t('LDAP connection error. Please contact an Administrator.'));
+    $return = FALSE;
+  }
+
+  return $return;
+}
+
+/**
  * Функция изменения атрибутов у какой-либо записи в LDAP.
  * 
  * @param type $dn
@@ -413,7 +541,7 @@ function mcb_proxy_ldap_modify($dn, $attributes, $del = FALSE) {
     // Get first server.
     $ldap_server = current($ldap_servers);
     // Run a search.
-    if ($results = $ldap_server->modifyLdapEntry($dn, $attributes,$del)) {
+    if ($results = $ldap_server->modifyLdapEntry($dn, $attributes, $del)) {
       $dbg = 5;
       $result = TRUE;
     }
@@ -475,7 +603,6 @@ function mcb_proxy_ldap_groupAddMember($group_dn, $user, $groupMembershipsAttr =
   return $return;
 }
 
-
 /**
  *  Добовляем пользователя в группу LDAP в eDir. 
  * @param string $group_dn  'cn=internet_full,ou=Internet_Proxy,ou=ACCESS,o=MCB'
@@ -522,11 +649,6 @@ function mcb_proxy_ldap_groupRemoveMember($group_dn, $user, $groupMembershipsAtt
   return $return;
 }
 
-
-    
-
-
-
 /**
  * Для отладки 
  * 
@@ -539,14 +661,21 @@ function mcb_proxy_page_devel() {
 
   $n_context = 'HQM';
   $n_login = 'bocharov-ms';
-//  $n_proxy_group = 'internet_full';
-  $n_proxy_group = 'sfa_labutina-ee_nnv';
+  //$n_proxy_group = 'internet_full';
+  //$n_proxy_group = 'internet';
+  //$n_proxy_group = 'sfa_labutina-ee_nnv';
+  $n_proxy_group = 'sfa_ulmer-ei_spb';
+  //$n_proxy_group = 'jko';
+  //$n_proxy_group = 'block_video';
 
-  //$red = mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group);
-  $red = mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group);
+  $group_dn = "cn=idiot,ou=Internet_Proxy,ou=ACCESS,o=MCB";
+  //mcb_proxy_ldap_groupRemoveGroup($group_dn);
 
+  $red = mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group);
+  //$red = mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group);
+//  mcb_proxy_page_user_import();
   // $r = mcb_proxy_ldap_groupAddMember($group_dn, $user);
-  // $r = mcb_proxy_ldap_groupRemoveMember($group_dn, $user);
+  //$r = mcb_proxy_ldap_groupRemoveMember($group_dn, $user);
   // $r = mcb_proxy_ldap_modify($dn, $attributes); 
 
   return $content;
@@ -686,7 +815,6 @@ function mcb_proxy_ldap_userAddInternet($n_login, $n_context, $n_proxy_group, $n
   }
 }
 
-
 /**
  * Удаление указанного пользователя из указанной группы в LDAP
  * 
@@ -728,25 +856,59 @@ function mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group,
       'groupmembership',
       'securityequals',
     );
-    
-    
-    
+
+
+
     // Получим текущие значения нужных атрибутов и сохраним их
     $attr = _mcb_proxy_ldap_entry_get_attr($attributes, $dd);
-    
+
     foreach ($attributes as $key) {
-      if(array_key_exists($key, $attr) ){
+      if (array_key_exists($key, $attr)) {
         foreach ($attr[$key] as $indx => $value) {
-          if ($value == $groupMembership ){
+          if ($value == $groupMembership) {
             unset($attr[$key][$indx]);
-          }                         
+          }
         }
       }
     }
-    
+
     // Удаляем 2 атрибута у пользователя
-    $r = mcb_proxy_ldap_modify($n_login_dn, $attr,true);
+    $r = mcb_proxy_ldap_modify($n_login_dn, $attr, true);
     // Удаляем теперь из самой группы  указанного пользователя, также 2 атрибута
     $r = mcb_proxy_ldap_groupRemoveMember($n_proxy_group_dn, $n_login_dn);
   }
+}
+
+/**
+ * Autocomplete callback.
+ * автопоиск наличия указанного пользователя в LDAP
+ */
+function mcb_proxy_autocomplete_user_ldap($login) {
+  $dbg = 0;
+  $login = trim(strtoupper($login));
+
+  $dn = 'o=MCB';
+  $filter = '(& (objectClass=Person)(objectClass=inetOrgPerson)(cn=' . $login . '*))';
+  $result = mcb_proxy_ldap_search($dn, $filter);
+
+  $matches = array();
+  if ($result['count'] != 0) {
+    $count = $result['count'];
+    unset($result['count']);
+    // Ограничиваем  подсказки 5-ю вариантами
+    if ($count > 5 ){
+      $count = 5;
+    }
+    $i = 0;
+    
+    // Также необходимо проверить  есть ли этот пользователь уже в БД
+    while ($i < $count) {
+      $item = $result[$i];
+      $dn_res = check_plain($item['dn']);
+      $matches[$dn_res] = $dn_res;
+      $i++;
+    }
+  }
+
+  drupal_json_output($matches);
 }

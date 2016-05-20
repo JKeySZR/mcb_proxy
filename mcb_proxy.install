@@ -37,15 +37,33 @@ function mcb_proxy_schema() {
         'unsigned' => true,
         'not null' => true
       ),
+      'name' => array(
+        'login' => 'group_name',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),      
       'desc' => array(
         'description' => 'Description of group',
         'type' => 'varchar',
         'length' => 255,
         'not null' => true
       ),
+      'sfa' => array(
+        'description' => 'Sites filter allow',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => false
+      ),         
+      'sfd' => array(
+        'description' => 'Sites filter deny',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => false
+      ),         
     ),
     'primary key' => array('id'),
-  );  
+  );    
   
   $schema['mcb_proxy_site'] = array(
     'description' => 'mcb_proxy',
@@ -97,17 +115,11 @@ function mcb_proxy_schema() {
         'not null' => true
       ),
       'login' => array(
-        'login' => 'Novell login',
+        'login' => 'Novell login, full LDAP DN ',
         'type' => 'varchar',
         'length' => 255,
         'not null' => true
-      ),
-      'context' => array(
-        'login' => 'Novell context',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => true
-      ),      
+      ),  
       'inet' => array(
         'description' => 'Какой тип доступа 0 обычный',
         'type' => 'int',
@@ -134,13 +146,13 @@ function mcb_proxy_schema() {
   $schema['mcb_proxy_user2group'] = array(
     'description' => 'mcb_proxy',
     'fields' => array(
-      'gid' => array(
+      'group_id' => array(
         'description' => 'Group id from mcb_proxy_group',
         'type' => 'int',
         'unsigned' => true,
         'not null' => true
       ),
-      'uid' => array(
+      'user_id' => array(
         'description' => 'User id from mcb_proxy_users',
         'type' => 'int',
         'unsigned' => true,
@@ -153,20 +165,23 @@ function mcb_proxy_schema() {
 }
 
 /**
- * Add a new table mcb_proxy_user2group
+ *  меняем таблицу mcb_proxy_group
+ *  удаляем context колонку из mcb_proxy_users
+ *  Создаем новую таблицу mcb_proxy_user2group
+ * 
  */
-function it_novell_update_7001() {
+function mcb_proxy_update_7001() {
   
   $schema['mcb_proxy_user2group'] = array(
     'description' => 'mcb_proxy',
     'fields' => array(
-      'gid' => array(
+      'group_id' => array(
         'description' => 'Group id from mcb_proxy_group',
         'type' => 'int',
         'unsigned' => true,
         'not null' => true
       ),
-      'uid' => array(
+      'user_id' => array(
         'description' => 'User id from mcb_proxy_users',
         'type' => 'int',
         'unsigned' => true,
@@ -175,5 +190,50 @@ function it_novell_update_7001() {
     ),    
   );    
   
+  $schema['mcb_proxy_group'] = array(
+    'description' => 'for LDAP group ID',
+    'fields' => array(
+      'id' => array(
+        'description' => 'id',
+        'type' => 'serial',
+        'unsigned' => true,
+        'not null' => true
+      ),
+      'name' => array(
+        'login' => 'group_name',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),      
+      'desc' => array(
+        'description' => 'Description of group',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),
+      'sfa' => array(
+        'description' => 'Sites filter allow',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => false
+      ),         
+      'sfd' => array(
+        'description' => 'Sites filter deny',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => false
+      ),         
+    ),
+    'primary key' => array('id'),
+  );    
+  
+  // Удаляем ненужную поле в котором хранили CONTEXT
+  db_drop_field('mcb_proxy_users', 'context');
+  
+// Пересоздадим таблицу, пока так можно она пустая
+  db_drop_table('mcb_proxy_group');
+  db_drop_table('mcb_proxy_user2group');
+  
   db_create_table('mcb_proxy_user2group', $schema['mcb_proxy_user2group']);
+  db_create_table('mcb_proxy_group', $schema['mcb_proxy_group']);
 }
