@@ -60,7 +60,13 @@ function mcb_proxy_schema() {
         'type' => 'blob',
         'size' => 'big',
         'not null' => false
-      ),         
+      ),               
+      'ldap_dn' => array(
+        'description' => 'LDAP DN of group',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => true
+      ),      
     ),
     'primary key' => array('id'),
   );    
@@ -236,4 +242,23 @@ function mcb_proxy_update_7001() {
   
   db_create_table('mcb_proxy_user2group', $schema['mcb_proxy_user2group']);
   db_create_table('mcb_proxy_group', $schema['mcb_proxy_group']);
+}
+
+
+/**
+ *  Добавить ноое поле ldap_dn  в таблицу {mcb_proxy_group} , для учета
+ *  полного пути в LDAP
+ * 
+ * 
+ */
+function mcb_proxy_update_7002() {
+  
+  $spec = array(
+    'type' => 'varchar',
+    'description' => "LDAP DN group",
+    'length' => 255,
+    'not null' => FALSE,
+  ); 
+  
+  db_add_field( 'mcb_proxy_group', 'ldap_dn', $spec);
 }
