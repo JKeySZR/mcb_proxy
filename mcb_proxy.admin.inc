@@ -87,51 +87,7 @@ function _mcb_proxy_getGroupDN_byID($group_id) {
   return $group_id[0];
 }
 
-/**
- * Добавление мета информации о том какой группе принадлежит пользователь
- * 
- * @param string $user_dn
- * @param string $group_dn
- */
-function _mcb_proxy_user2group_add($user_dn, $group_dn) {
-  $dbg = 0;
-  // 1. Получить  пользователя
-  $user = db_select('mcb_proxy_users', 'u')
-      ->fields('u', array('id'))
-      ->condition('login', $user_dn)
-      ->execute()
-      ->fetchCol();
-  // Смотрим не нулейвой ли результат ? если нулевой тогда добавить ? 
-  // 2. Получить  группу
-  $group = db_select('mcb_proxy_group', 'g')
-      ->fields('g', array('id'))
-      ->condition('ldap_dn', $group_dn)
-      ->execute()
-      ->fetchCol();
 
-
-  // 3. Добавить или обновить информацию
-  $u2g = db_select('mcb_proxy_user2group', 'u2g')
-      ->fields('u2g')
-      ->condition('group_id', $group)
-      ->condition('user_id', $user)
-      ->execute()
-      ->fetchAll();
-
-  if (count($u2g) == 0) {
-    // Массив полей для записи в таблицу
-    $data = array(
-      'group_id' => $group,
-      'user_id' => $user,
-    );
-
-    // Сохраняем мета информацию в Drupal    
-    db_update('mcb_proxy_user2group')
-        ->fields($data)
-        ->condition('id', $values['user_id'])
-        ->execute();
-  }
-}
 
 /**
  * Implements hook_forms();
@@ -234,6 +190,17 @@ function mcb_proxy_form_user_add($form_id, &$form_state) {
 
 function mcb_proxy_form_user_add_validate($form_id, &$form_state) {
   $dbg = 6;
+  $values = $form_state['values'];
+  //--- Смотрим есть ли такой пользователь в мета-информации
+  $id = db_select('mcb_proxy_users', 'u')
+      ->fields('u', array('id'))
+      ->condition('login', $values['login'])
+      ->execute()
+      ->fetchCol();  
+  if (isset($id) && count($id) > 0) {
+    form_set_error('login', 'Такой пользователь уже есть в реестре!');
+  }
+  
 }
 
 /**
@@ -273,7 +240,17 @@ function mcb_proxy_form_user_add_submit($form_id, &$form_state) {
   $id = db_insert('mcb_proxy_users')
       ->fields($data)
       ->execute();
-  drupal_set_message('Пользователь' . $values['login'] . 'добавлен.');
+  
+  // Группы 
+  foreach ($values['groups'] as $key => $value) {
+    if ((int) $value != 0) {
+      $group_dn = _mcb_proxy_getGroupDN_byID($value);      
+      mcb_proxy_userAdd($values['login'],$group_dn);
+    }
+  };  
+  
+  
+  drupal_set_message('Пользователь' . $values['login'] . 'в реестр добавлен.');
 }
 
 /**
@@ -443,14 +420,28 @@ function mcb_proxy_form_user_edit_submit($form_id, &$form_state) {
     }
   }
 $dbg = 0;
+
+  $user_id = $values['user_id'];
+     
+  $u2g = db_select('mcb_proxy_user2group', 'u2g')
+      ->fields('u2g')      
+      ->condition('user_id', $user_id)
+      ->execute()
+      ->fetchAllKeyed(0);  
+  
   // Группы 
   foreach ($values['groups'] as $key => $value) {
-    if ((int) $value != 0) {
-      $dd = _mcb_proxy_getGroupDN_byID($value);
-//      _mcb_proxy_user2group_add($user_dn, $group_dn);
+    if (isset($u2g[$key]) && (int) $value == 0) {
+      $group_dn = _mcb_proxy_getGroupDN_byID($key);      
+      mcb_proxy_userDell($values['login'],$group_dn);
     }
+    // Если добавили новую группу, кторой ранее не было
+    if (!isset($u2g[$key]) && (int) $value != 0) {
+      $group_dn = _mcb_proxy_getGroupDN_byID($value);      
+      mcb_proxy_userAdd($values['login'],$group_dn);
+    }    
+        
   };
-
 
   db_update('mcb_proxy_users')
       ->fields($data)

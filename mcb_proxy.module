@@ -154,20 +154,7 @@ function mcb_proxy_menu() {
   );
 
   // LDAP - eDir
-
-  $items['mcb/mcb_proxy/admin/ldap'] = array(
-    'title' => 'LDAP (eDir)',
-    'page callback' => 'mcb_proxy_page_groups',
-    'access arguments' => array('access protected mcb_proxy_manage'),
-    'type' => MENU_LOCAL_TASK,
-  );
-
-  $items['mcb/mcb_proxy/admin/ldap/groups'] = array(
-    'title' => 'Группы интернета',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-  );
-
-  $items['mcb/mcb_proxy/admin/ldap/search'] = array(
+    $items['mcb/mcb_proxy/admin/ldap'] = array(
     'title' => 'Поиск в LDAP',
     'access arguments' => array('access protected mcb_proxy_manage'),
     'page callback' => 'drupal_get_form',
@@ -175,7 +162,20 @@ function mcb_proxy_menu() {
     'type' => MENU_LOCAL_TASK,
     'file' => 'mcb_proxy.admin.inc',
   );
+  
+  $items['mcb/mcb_proxy/admin/ldap/search'] = array(
+    'title' => 'Поиск пользователей в eDir',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => '10',
+  );
 
+  $items['mcb/mcb_proxy/admin/ldap/groups'] = array(
+    'title' => 'LDAP (eDir) groups internet',
+    'page callback' => 'mcb_proxy_page_groups',
+    'access arguments' => array('access protected mcb_proxy_manage'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => '30',
+  );
 
 
   $items['mcb/mcb_proxy/index'] = array(
@@ -789,6 +789,20 @@ function mcb_proxy_page_deny($acl_name, $proxy_user) {
 function mcb_proxy_userAdd($user_dn, $group_dn) {
   $dbg = 1;
 
+  // Проверяем пути в LDAP
+  if (!_mcb_proxy_ldap_dnExist($user_dn)) {
+    $message = "$user_dn в LDAP  отсутствует!";
+    drupal_set_message($message, 'error');
+    return false;
+  }
+
+  if (!_mcb_proxy_ldap_dnExist($group_dn)) {
+    $message = "$group_dn в LDAP  отсутствует!";
+    drupal_set_message($message, 'error');
+    return false;
+  }
+
+
   $res = mcb_proxy_ldap_userAddInternet($user_dn, NULL, $group_dn);
 
   if (!$res) {
@@ -852,6 +866,87 @@ function mcb_proxy_userAdd($user_dn, $group_dn) {
         ->execute();
   }
 
+  return TRUE;
+}
+
+/**
+ *  Функция-обертка, главная!!
+ *  Добавления пользователя в  указанную группу интернета. С модификацией LDAP
+ * 
+ * @param type $user_dn
+ * @param type $group_dn
+ */
+function mcb_proxy_userDell($user_dn, $group_dn) {
+  $dbg = 1;
+
+  // Проверяем пути в LDAP
+  if (!_mcb_proxy_ldap_dnExist($user_dn)) {
+    $message = "$user_dn в LDAP  отсутствует!";
+    drupal_set_message($message, 'error');
+    return false;
+  }
+
+  if (!_mcb_proxy_ldap_dnExist($group_dn)) {
+    $message = "$group_dn в LDAP  отсутствует!";
+    drupal_set_message($message, 'error');
+    return false;
+  }
+
+
+  $res = mcb_proxy_ldap_userRemoveInternet($user_dn, NULL, $group_dn);
+
+  if (!$res) {
+    $message = "При удалении $user_dn из группы $group_dn случился облом";
+    drupal_set_message($message, 'error');
+    return false;
+  }
+  else {
+    $message = "$user_dn удален из группы $group_dn";
+    drupal_set_message($message, 'status');
+  }
+
+
+  //--- Смотрим есть ли такой пользователь в мета-информации
+  $id = db_select('mcb_proxy_users', 'u')
+      ->fields('u', array('id'))
+      ->condition('login', $user_dn)
+      ->execute()
+      ->fetchCol();
+  if (isset($id) && count($id) > 0) {
+    $uid = array_shift($id);
+  }
+  else {
+    $dbg = 0;
+    // Если его нет тогда добавить в таблицу, и получить его ID
+    // Пишем в таблицу данные
+    $data = array(
+      'login' => $user_dn,
+    );
+
+    $uid = db_insert('mcb_proxy_users')
+        ->fields($data)
+        ->execute();
+  }
+
+  unset($query);
+  $dbg = 0;
+  
+  //--- Смотрим есть группа 
+  $query = db_select('mcb_proxy_group', 'g')
+      ->fields('g', array('id'))
+      ->condition('ldap_dn', $group_dn)
+      ->execute()
+      ->fetchCol();
+
+  $gid = array_shift($query);
+
+  // Drupal 7, dynamic query
+  db_delete('mcb_proxy_user2group')
+      ->condition('group_id', $gid)
+      ->condition('user_id', $uid)
+      ->execute();
+  
+  // Если нет сопоставления пользователя группе, тогда добавим его
   return TRUE;
 }
 
@@ -969,27 +1064,26 @@ function mcb_proxy_ldap_userAddInternet($n_login_dn, $n_proxy_group, $n_proxy_gr
  * @param string $n_proxy_group_dn  если выставленно это значение полный путь до нужной  группы
  * @return boolean
  */
-function mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group, $n_proxy_group_dn = NULL) {
+function mcb_proxy_ldap_userRemoveInternet($n_login_dn, $n_proxy_group, $n_proxy_group_dn = NULL) {
 
   $dbg = 0;
 
-//  $n_context = 'HQM';
-//  $n_login = 'bocharov-ms';
-//  $n_proxy_group = 'internet_full';
-
-  $n_login_dn = "cn=$n_login,ou=$n_context,o=MCB";
-  // Дабы 
   if (is_null($n_proxy_group_dn)) {
-    $n_proxy_group_dn = "cn=$n_proxy_group,ou=Internet_Proxy,ou=ACCESS,o=MCB";
+    $n_proxy_group_dn = $n_proxy_group;
   }
 
-  $dn = "ou=$n_context,o=MCB";
-  $filter = "(cn=$n_login)";
+  $filter = "";
   $securityEquals = $n_proxy_group_dn;
   $groupMembership = $n_proxy_group_dn;
 
-  // Получаем все атрибуты пользователя. Необходимо добавить обработку если такого пользователя нет
-  $dd = mcb_proxy_ldap_search($dn, $filter);
+
+  $ldn = explode(',', $n_login_dn);
+  $cn = $ldn[0];
+  unset($ldn[0]);
+  $l_dn = implode(',', $ldn);
+  $filter = "(&(objectClass=Person)(objectClass=inetOrgPerson)($cn))";
+
+  $dd = mcb_proxy_ldap_search($l_dn, $filter);
   if ($dd['count'] == 0) {
     // Епта, такого пользователя нет в LDAP
     return false;
@@ -1001,8 +1095,6 @@ function mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group,
       'groupmembership',
       'securityequals',
     );
-
-
 
     // Получим текущие значения нужных атрибутов и сохраним их
     $attr = _mcb_proxy_ldap_entry_get_attr($attributes, $dd);
@@ -1021,6 +1113,8 @@ function mcb_proxy_ldap_userRemoveInternet($n_login, $n_context, $n_proxy_group,
     $r = mcb_proxy_ldap_modify($n_login_dn, $attr, true);
     // Удаляем теперь из самой группы  указанного пользователя, также 2 атрибута
     $r = mcb_proxy_ldap_groupRemoveMember($n_proxy_group_dn, $n_login_dn);
+
+    return true;
   }
 }
 
@@ -1056,4 +1150,50 @@ function mcb_proxy_autocomplete_user_ldap($login) {
   }
 
   drupal_json_output($matches);
+}
+
+/**
+ * Добавление мета информации о том какой группе принадлежит пользователь
+ * 
+ * @param string $user_dn
+ * @param string $group_dn
+ */
+function _mcb_proxy_user2group_add($user_dn, $group_dn) {
+  $dbg = 0;
+  // 1. Получить  пользователя
+  $user = db_select('mcb_proxy_users', 'u')
+      ->fields('u', array('id'))
+      ->condition('login', $user_dn)
+      ->execute()
+      ->fetchCol();
+  // Смотрим не нулейвой ли результат ? если нулевой тогда добавить ? 
+  // 2. Получить  группу
+  $group = db_select('mcb_proxy_group', 'g')
+      ->fields('g', array('id'))
+      ->condition('ldap_dn', $group_dn)
+      ->execute()
+      ->fetchCol();
+
+
+  // 3. Добавить или обновить информацию
+  $u2g = db_select('mcb_proxy_user2group', 'u2g')
+      ->fields('u2g')
+      ->condition('group_id', $group)
+      ->condition('user_id', $user)
+      ->execute()
+      ->fetchAll();
+
+  if (count($u2g) == 0) {
+    // Массив полей для записи в таблицу
+    $data = array(
+      'group_id' => $group,
+      'user_id' => $user,
+    );
+
+    // Сохраняем мета информацию в Drupal    
+    db_update('mcb_proxy_user2group')
+        ->fields($data)
+        ->condition('id', $values['user_id'])
+        ->execute();
+  }
 }
